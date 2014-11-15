@@ -31,11 +31,19 @@ class CsrfProviderAdapter implements CsrfTokenManagerInterface
      */
     private $csrfProvider;
 
+    /**
+     * 
+     * @param CsrfProviderInterface $csrfProvider
+     */
     public function __construct(CsrfProviderInterface $csrfProvider)
     {
         $this->csrfProvider = $csrfProvider;
     }
 
+    /**
+     * 
+     * @return CsrfProviderInterface
+     */
     public function getCsrfProvider()
     {
         return $this->csrfProvider;

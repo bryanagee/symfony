@@ -42,14 +42,19 @@ class UsernamePasswordFormAuthenticationListener extends AbstractAuthenticationL
     /**
      * {@inheritdoc}
      */
-    public function __construct(SecurityContextInterface $securityContext, AuthenticationManagerInterface $authenticationManager, SessionAuthenticationStrategyInterface $sessionStrategy, HttpUtils $httpUtils, $providerKey, AuthenticationSuccessHandlerInterface $successHandler, AuthenticationFailureHandlerInterface $failureHandler, array $options = array(), LoggerInterface $logger = null, EventDispatcherInterface $dispatcher = null, $csrfTokenManager = null)
-    {
-        if ($csrfTokenManager instanceof CsrfProviderInterface) {
-            $csrfTokenManager = new CsrfProviderAdapter($csrfTokenManager);
-        } elseif (null !== $csrfTokenManager && !$csrfTokenManager instanceof CsrfTokenManagerInterface) {
-            throw new InvalidArgumentException('The CSRF token manager should be an instance of CsrfProviderInterface or CsrfTokenManagerInterface.');
-        }
-
+    public function __construct(
+            SecurityContextInterface $securityContext,
+            AuthenticationManagerInterface $authenticationManager,
+            SessionAuthenticationStrategyInterface $sessionStrategy,
+            HttpUtils $httpUtils, $providerKey,
+            AuthenticationSuccessHandlerInterface $successHandler,
+            AuthenticationFailureHandlerInterface $failureHandler,
+            array $options = array(),
+            LoggerInterface $logger = null,
+            EventDispatcherInterface $dispatcher = null,
+            $csrfTokenManager = null
+    ) {
+        
         parent::__construct($securityContext, $authenticationManager, $sessionStrategy, $httpUtils, $providerKey, $successHandler, $failureHandler, array_merge(array(
             'username_parameter' => '_username',
             'password_parameter' => '_password',
@@ -58,6 +63,30 @@ class UsernamePasswordFormAuthenticationListener extends AbstractAuthenticationL
             'post_only' => true,
         ), $options), $logger, $dispatcher);
 
+        $this->setCsrfTokenManager($csrfTokenManager);
+    }
+    
+    /**
+     * 
+     * @param type $csrfTokenManager
+     * 
+     * @throws InvalidArgumentException
+     */
+    private function setCsrfTokenManager($csrfTokenManager)
+    {
+        if (null === $csrfTokenManager) {
+            return;
+        }
+        
+        if ($csrfTokenManager instanceof CsrfProviderInterface) {
+            $csrfTokenManager = new CsrfProviderAdapter($csrfTokenManager);
+        }
+        
+        if (!$csrfTokenManager instanceof CsrfTokenManagerInterface) {
+            throw new InvalidArgumentException('The CSRF token manager should be'
+                    . ' an instance of CsrfProviderInterface or CsrfTokenManagerInterface.');
+        }
+        
         $this->csrfTokenManager = $csrfTokenManager;
     }
 
@@ -78,13 +107,7 @@ class UsernamePasswordFormAuthenticationListener extends AbstractAuthenticationL
      */
     protected function attemptAuthentication(Request $request)
     {
-        if (null !== $this->csrfTokenManager) {
-            $csrfToken = $request->get($this->options['csrf_parameter'], null, true);
-
-            if (false === $this->csrfTokenManager->isTokenValid(new CsrfToken($this->options['intention'], $csrfToken))) {
-                throw new InvalidCsrfTokenException('Invalid CSRF token.');
-            }
-        }
+        $this->checkCsrfToken($request);
 
         if ($this->options['post_only']) {
             $username = trim($request->request->get($this->options['username_parameter'], null, true));
@@ -97,5 +120,26 @@ class UsernamePasswordFormAuthenticationListener extends AbstractAuthenticationL
         $request->getSession()->set(Security::LAST_USERNAME, $username);
 
         return $this->authenticationManager->authenticate(new UsernamePasswordToken($username, $password, $this->providerKey));
+    }
+    
+    /**
+     * 
+     * @param type $request
+     * 
+     * @throws InvalidCsrfTokenException
+     */
+    protected function checkCsrfToken($request)
+    {
+        if (null === $this->csrfTokenManager) {
+            return;
+        }
+        
+        $csrfToken = $request->get($this->options['csrf_parameter'], null, true);
+
+        if (false === $this->csrfTokenManager->isTokenValid(new CsrfToken($this->options['intention'], $csrfToken))) {
+            throw new InvalidCsrfTokenException('Invalid CSRF token.');
+        }
+        
+        return;
     }
 }

@@ -50,6 +50,18 @@ use Symfony\Component\Security\Http\HttpUtils;
  */
 abstract class AbstractAuthenticationListener implements ListenerInterface
 {
+    protected $defaultOptions = array(
+            'check_path'                     => '/login_check',
+            'login_path'                     => '/login',
+            'always_use_default_target_path' => false,
+            'default_target_path'            => '/',
+            'target_path_parameter'          => '_target_path',
+            'use_referer'                    => false,
+            'failure_path'                   => null,
+            'failure_forward'                => false,
+            'require_previous_session'       => true,
+        );
+    
     protected $options;
     protected $logger;
     protected $authenticationManager;
@@ -80,8 +92,17 @@ abstract class AbstractAuthenticationListener implements ListenerInterface
      *
      * @throws \InvalidArgumentException
      */
-    public function __construct(SecurityContextInterface $securityContext, AuthenticationManagerInterface $authenticationManager, SessionAuthenticationStrategyInterface $sessionStrategy, HttpUtils $httpUtils, $providerKey, AuthenticationSuccessHandlerInterface $successHandler, AuthenticationFailureHandlerInterface $failureHandler, array $options = array(), LoggerInterface $logger = null, EventDispatcherInterface $dispatcher = null)
-    {
+    public function __construct(
+            SecurityContextInterface $securityContext,
+            AuthenticationManagerInterface $authenticationManager,
+            SessionAuthenticationStrategyInterface $sessionStrategy,
+            HttpUtils $httpUtils, $providerKey,
+            AuthenticationSuccessHandlerInterface $successHandler,
+            AuthenticationFailureHandlerInterface $failureHandler,
+            array $options = array(),
+            LoggerInterface $logger = null,
+            EventDispatcherInterface $dispatcher = null
+    ) {
         if (empty($providerKey)) {
             throw new \InvalidArgumentException('$providerKey must not be empty.');
         }
@@ -92,17 +113,7 @@ abstract class AbstractAuthenticationListener implements ListenerInterface
         $this->providerKey = $providerKey;
         $this->successHandler = $successHandler;
         $this->failureHandler = $failureHandler;
-        $this->options = array_merge(array(
-            'check_path' => '/login_check',
-            'login_path' => '/login',
-            'always_use_default_target_path' => false,
-            'default_target_path' => '/',
-            'target_path_parameter' => '_target_path',
-            'use_referer' => false,
-            'failure_path' => null,
-            'failure_forward' => false,
-            'require_previous_session' => true,
-        ), $options);
+        $this->options = array_merge($this->defaultOptions, $options);
         $this->logger = $logger;
         $this->dispatcher = $dispatcher;
         $this->httpUtils = $httpUtils;
@@ -156,8 +167,8 @@ abstract class AbstractAuthenticationListener implements ListenerInterface
             } else {
                 throw new \RuntimeException('attemptAuthentication() must either return a Response, an implementation of TokenInterface, or null.');
             }
-        } catch (AuthenticationException $e) {
-            $response = $this->onFailure($request, $e);
+        } catch (AuthenticationException $exception) {
+            $response = $this->onFailure($request, $exception);
         }
 
         $event->setResponse($response);
@@ -190,6 +201,16 @@ abstract class AbstractAuthenticationListener implements ListenerInterface
      */
     abstract protected function attemptAuthentication(Request $request);
 
+
+    /**
+     * 
+     * @param Request $request
+     * @param AuthenticationException $failed
+     * 
+     * @return Response
+     * 
+     * @throws \RuntimeException 
+     */
     private function onFailure(Request $request, AuthenticationException $failed)
     {
         if (null !== $this->logger) {
@@ -210,6 +231,16 @@ abstract class AbstractAuthenticationListener implements ListenerInterface
         return $response;
     }
 
+    /**
+     * 
+     * @param GetResponseEvent $event
+     * @param Request $request
+     * @param TokenInterface $token
+     * 
+     * @return Response
+     * 
+     * @throws \RuntimeException
+     */
     private function onSuccess(Request $request, TokenInterface $token)
     {
         if (null !== $this->logger) {

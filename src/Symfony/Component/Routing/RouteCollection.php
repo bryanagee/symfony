@@ -11,6 +11,7 @@
 
 namespace Symfony\Component\Routing;
 
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Config\Resource\ResourceInterface;
 
 /**
@@ -37,6 +38,16 @@ class RouteCollection implements \IteratorAggregate, \Countable
      */
     private $resources = array();
 
+    /**
+     * @var LoggerInterface|null
+     */
+    private $logger;
+
+    public function __construct(LoggerInterface $logger = null)
+    {
+        $this->logger = $logger;
+    }
+    
     public function __clone()
     {
         foreach ($this->routes as $name => $route) {
@@ -78,6 +89,14 @@ class RouteCollection implements \IteratorAggregate, \Countable
      */
     public function add($name, Route $route)
     {
+        if (!empty($this->routes[$name] && $this->logger)) {
+            $this->logger->warning(sprintf(
+                    'Route %s:%s being overwritten by %s',
+                   $name,
+                   $this->routes[$name],
+                   $route
+                   ));
+        }
         unset($this->routes[$name]);
 
         $this->routes[$name] = $route;
